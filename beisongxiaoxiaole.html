@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>背诵消消乐通关泡泡秀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', 'PingFang SC', Arial, sans-serif;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 标题区域 */
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .title {
+            font-size: 42px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ffd6a5, #ffadad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-block;
+            animation: titleFloat 3s ease-in-out infinite;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .title-icon-left {
+            font-size: 36px;
+            display: inline-block;
+            animation: twinkle 2s ease-in-out infinite;
+            margin-right: 15px;
+        }
+
+        .title-icon-right {
+            font-size: 36px;
+            display: inline-block;
+            animation: twinkle 2s ease-in-out infinite;
+            animation-delay: 1s;
+            margin-left: 15px;
+        }
+
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        /* 主容器 */
+        .container {
+            display: flex;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* 左侧进度条 */
+        .progress-container {
+            width: 40px;
+            margin-right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: calc(100vh - 200px);
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #00b894, #00cec9, #fdcb6e);
+            border-radius: 20px;
+            transition: height 0.3s ease;
+            box-shadow: 0 -2px 10px rgba(0, 184, 148, 0.5);
+        }
+
+        .progress-text {
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2d3436;
+            text-align: center;
+        }
+
+        /* 泡泡区域 */
+        .bubbles-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            justify-items: center;
+            align-items: start;
+            min-height: calc(100vh - 200px);
+        }
+
+        .bubble {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+            user-select: none;
+        }
+
+        .bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .bubble.clicked {
+            animation: disappear 0.5s ease-out forwards !important;
+            pointer-events: none;
+        }
+
+        /* 当点击时，停止浮动动画 */
+        .bubble.clicked.float {
+            animation: disappear 0.5s ease-out forwards !important;
+        }
+
+        @keyframes disappear {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* 彩虹配色 */
+        .bubble.color-0 { background: #ffadad; color: #2d3436; }
+        .bubble.color-1 { background: #ffd6a5; color: #2d3436; }
+        .bubble.color-2 { background: #fdffb6; color: #2d3436; }
+        .bubble.color-3 { background: #caffbf; color: #2d3436; }
+        .bubble.color-4 { background: #9bf6ff; color: #2d3436; }
+        .bubble.color-5 { background: #a0c4ff; color: white; }
+        .bubble.color-6 { background: #bdb2ff; color: white; }
+        .bubble.color-7 { background: #ffc6ff; color: #2d3436; }
+        .bubble.color-8 { background: #ffffff; color: #2d3436; border: 2px solid #ddd; }
+
+        /* 浮动动画 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .bubble.float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* 激励语 */
+        .encouragement {
+            position: fixed;
+            font-size: 24px;
+            font-weight: bold;
+            color: #e84393;
+            pointer-events: none;
+            z-index: 1000;
+            animation: encouragementFloat 1s ease-out forwards;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes encouragementFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.2);
+            }
+        }
+
+        /* 控制按钮 */
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: modalAppear 0.3s ease-out;
+        }
+
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            color: #2d3436;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            color: #636e72;
+            transition: transform 0.3s ease;
+        }
+
+        .close-btn:hover {
+            transform: rotate(90deg);
+        }
+
+        /* 历史记录表格 */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .history-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .history-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #2d3436;
+        }
+
+        .history-table tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        /* 导入表单 */
+        .import-form {
+            margin-top: 20px;
+        }
+
+        .import-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+
+        .import-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-hint {
+            font-size: 14px;
+            color: #636e72;
+            margin-bottom: 15px;
+        }
+
+        /* 烟花效果 */
+        .fireworks {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: fireworkExplode 1s ease-out forwards;
+        }
+
+        @keyframes fireworkExplode {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+        }
+
+        /* 完成庆祝 */
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 72px;
+            font-weight: bold;
+            color: #e84393;
+            text-shadow: 0 0 20px rgba(232, 67, 147, 0.8);
+            z-index: 10000;
+            animation: celebrationPulse 1s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes celebrationPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .bubbles-container {
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .title {
+                font-size: 28px;
+            }
+            .bubbles-container {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+                gap: 10px;
+            }
+            .bubble {
+                width: 80px;
+                height: 80px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 标题 -->
+    <div class="header">
+        <h1 class="title">
+            <span class="title-icon-left">✨</span>
+            背诵消消乐通关泡泡秀
+            <span class="title-icon-right">🎉</span>
+        </h1>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 左侧进度条 -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">0/0</div>
+        </div>
+
+        <!-- 泡泡区域 -->
+        <div class="bubbles-container" id="bubblesContainer"></div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="controls">
+        <button class="btn btn-primary" id="historyBtn">📋 查看历史记录</button>
+        <button class="btn btn-success" id="importBtn">📥 批量导入</button>
+        <button class="btn btn-warning" id="resetBtn">🔄 重置</button>
+    </div>
+
+    <!-- 历史记录模态框 -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 历史记录</h2>
+                <button class="close-btn" id="closeHistoryBtn">&times;</button>
+            </div>
+            <div id="historyContent">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>姓名</th>
+                            <th>点击次数</th>
+                            <th>最后锁定时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #636e72;">暂无记录</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量导入模态框 -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📥 批量导入学生名字</h2>
+                <button class="close-btn" id="closeImportBtn">&times;</button>
+            </div>
+            <div class="import-form">
+                <div class="form-hint">
+                    请输入学生名字，每行一个名字（支持换行分隔）：
+                </div>
+                <textarea class="import-textarea" id="importTextarea" placeholder="例如：&#10;张三&#10;李四&#10;王五&#10;..."></textarea>
+                <button class="btn btn-success" id="confirmImportBtn" style="width: 100%;">确认导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 烟花容器 -->
+    <div class="fireworks" id="fireworks"></div>
+
+    <!-- 完成庆祝 -->
+    <div class="celebration" id="celebration" style="display: none;">🎉 恭喜完成！🎉</div>
+
+    <script>
+        // 彩虹配色数组
+        const colors = [
+            '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff',
+            '#a0c4ff', '#bdb2ff', '#ffc6ff', '#ffffff'
+        ];
+
+        // 激励语数组
+        const encouragements = [
+            '太棒了！✨', '你真厉害！🌟', '继续加油！💪', '完美！🎉',
+            '真不错！👍', '干得漂亮！🎊', '很棒！⭐', '厉害！🔥'
+        ];
+
+        // 全局变量
+        let students = [];
+        let clickedCount = 0;
+        let totalCount = 0;
+        let historyRecords = {};
+        let fireworksInterval = null;
+
+        // DOM元素
+        const bubblesContainer = document.getElementById('bubblesContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const historyModal = document.getElementById('historyModal');
+        const importModal = document.getElementById('importModal');
+        const historyBtn = document.getElementById('historyBtn');
+        const importBtn = document.getElementById('importBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+        const closeImportBtn = document.getElementById('closeImportBtn');
+        const confirmImportBtn = document.getElementById('confirmImportBtn');
+        const importTextarea = document.getElementById('importTextarea');
+        const historyTableBody = document.getElementById('historyTableBody');
+        const fireworks = document.getElementById('fireworks');
+        const celebration = document.getElementById('celebration');
+
+        // 初始化
+        function init() {
+            loadData();
+            if (students.length === 0) {
+                // 默认40个示例名字
+                students = [
+                    '谢雨欣', '卢嘉怡', '潘瑾萱', '赵思睿', '姜可馨', '范泽宇', '何明哲', '韩文博',
+                    '曹欣妍', '邓佳琪', '傅雪晴', '沈泽瑞', '曾雨萌', '吕心怡', '钟宇航', '李婉婷',
+                    '陈瑶', '黄子睿', '周泽楷', '黄思琪', '秦语桐', '贺云舒', '林俊辉', '邓雅雯',
+                    '曾依诺', '谢南洲', '王诗涵', '吕思涵', '郝清艺', '王希', '都方立', '孔依宸',
+                    '樊泽瑜', '邓潇含', '王方睦', '何远', '申言一', '苑蓝', '张雪兮', '张昱珩'
+                ];
+            }
+            renderBubbles();
+            bindEvents();
+        }
+
+        // 加载数据
+        function loadData() {
+            // 加载学生名单
+            const savedStudents = localStorage.getItem('bubbleStudents');
+            if (savedStudents) {
+                students = JSON.parse(savedStudents);
+            }
+
+            // 加载历史记录
+            const savedHistory = localStorage.getItem('bubbleHistory');
+            if (savedHistory) {
+                historyRecords = JSON.parse(savedHistory);
+            }
+        }
+
+        // 保存数据
+        function saveData() {
+            localStorage.setItem('bubbleStudents', JSON.stringify(students));
+            localStorage.setItem('bubbleHistory', JSON.stringify(historyRecords));
+        }
+
+        // 渲染泡泡
+        function renderBubbles() {
+            bubblesContainer.innerHTML = '';
+            clickedCount = 0;
+            totalCount = students.length;
+
+            students.forEach((student, index) => {
+                const bubble = document.createElement('div');
+                bubble.className = `bubble color-${index % colors.length} float`;
+                bubble.textContent = student;
+                bubble.dataset.name = student;
+                bubble.dataset.index = index;
+                
+                // 重置显示状态
+                bubble.style.display = '';
+                
+                // 随机浮动延迟
+                const delay = Math.random() * 3;
+                bubble.style.animationDelay = `${delay}s`;
+                
+                // 随机浮动周期
+                const duration = 2 + Math.random() * 2;
+                bubble.style.animationDuration = `${duration}s`;
+
+                bubble.addEventListener('click', handleBubbleClick);
+                bubblesContainer.appendChild(bubble);
+            });
+
+            updateProgress();
+        }
+
+        // 处理泡泡点击
+        function handleBubbleClick(e) {
+            const bubble = e.currentTarget;
+            const name = bubble.dataset.name;
+
+            // 如果已经点击过，不重复处理
+            if (bubble.classList.contains('clicked')) {
+                return;
+            }
+
+            // 移除浮动动画类，添加点击动画类
+            bubble.classList.remove('float');
+            bubble.classList.add('clicked');
+
+            // 显示激励语
+            showEncouragement(bubble);
+
+            // 更新计数
+            clickedCount++;
+            updateProgress();
+
+            // 记录历史
+            recordHistory(name);
+
+            // 动画结束后移除元素
+            setTimeout(() => {
+                bubble.style.display = 'none';
+            }, 500);
+
+            // 检查是否全部完成
+            if (clickedCount >= totalCount) {
+                setTimeout(() => {
+                    triggerFireworks();
+                }, 500);
+            }
+
+            // 保存数据
+            saveData();
+        }
+
+        // 显示激励语
+        function showEncouragement(bubble) {
+            const encouragement = document.createElement('div');
+            encouragement.className = 'encouragement';
+            encouragement.textContent = encouragements[Math.floor(Math.random() * encouragements.length)];
+
+            const rect = bubble.getBoundingClientRect();
+            encouragement.style.left = `${rect.left + rect.width / 2}px`;
+            encouragement.style.top = `${rect.top}px`;
+            encouragement.style.transform = 'translateX(-50%)';
+
+            document.body.appendChild(encouragement);
+
+            setTimeout(() => {
+                encouragement.remove();
+            }, 1000);
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            const percentage = totalCount > 0 ? (clickedCount / totalCount) * 100 : 0;
+            progressFill.style.height = `${percentage}%`;
+            progressText.textContent = `${clickedCount}/${totalCount}`;
+        }
+
+        // 记录历史
+        function recordHistory(name) {
+            const now = new Date().toLocaleString('zh-CN');
+            
+            if (!historyRecords[name]) {
+                historyRecords[name] = {
+                    name: name,
+                    count: 0,
+                    firstTime: now,
+                    lastTime: now
+                };
+            }
+
+            historyRecords[name].count++;
+            historyRecords[name].lastTime = now;
+        }
+
+        // 触发烟花效果
+        function triggerFireworks() {
+            celebration.style.display = 'block';
+            
+            // 持续15秒烟花
+            const duration = 15000; // 15秒
+            const startTime = Date.now();
+            
+            fireworksInterval = setInterval(() => {
+                if (Date.now() - startTime >= duration) {
+                    clearInterval(fireworksInterval);
+                    celebration.style.display = 'none';
+                    fireworks.innerHTML = '';
+                    return;
+                }
+
+                createFirework();
+            }, 100); // 每100ms创建一个烟花
+        }
+
+        // 创建单个烟花
+        function createFirework() {
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            // 创建多个粒子
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'firework';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.background = color;
+                particle.style.boxShadow = `0 0 10px ${color}`;
+
+                const angle = (Math.PI * 2 * i) / 20;
+                const distance = 50 + Math.random() * 50;
+                const duration = 0.5 + Math.random() * 0.5;
+
+                particle.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
+                particle.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
+                particle.style.animationDuration = `${duration}s`;
+
+                // 添加动画
+                particle.style.animation = `fireworkExplode ${duration}s ease-out forwards`;
+                particle.style.transform = `translate(calc(var(--dx)), calc(var(--dy)))`;
+
+                fireworks.appendChild(particle);
+
+                setTimeout(() => {
+                    particle.remove();
+                }, duration * 1000);
+            }
+        }
+
+        // 显示历史记录
+        function showHistory() {
+            const records = Object.values(historyRecords);
+            
+            // 按点击次数降序排序
+            records.sort((a, b) => b.count - a.count);
+
+            if (records.length === 0) {
+                historyTableBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #636e72;">暂无记录</td>
+                    </tr>
+                `;
+            } else {
+                historyTableBody.innerHTML = records.map((record, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong>${record.name}</strong></td>
+                        <td><span style="color: #e84393; font-weight: bold;">${record.count}</span> 次</td>
+                        <td>${record.lastTime}</td>
+                    </tr>
+                `).join('');
+            }
+
+            historyModal.classList.add('active');
+        }
+
+        // 关闭历史记录
+        function closeHistory() {
+            historyModal.classList.remove('active');
+        }
+
+        // 显示导入模态框
+        function showImport() {
+            importModal.classList.add('active');
+            importTextarea.value = students.join('\n');
+        }
+
+        // 关闭导入模态框
+        function closeImport() {
+            importModal.classList.remove('active');
+        }
+
+        // 确认导入
+        function confirmImport() {
+            const text = importTextarea.value.trim();
+            if (!text) {
+                alert('请输入学生名字！');
+                return;
+            }
+
+            const names = text.split('\n')
+                .map(name => name.trim())
+                .filter(name => name.length > 0);
+
+            if (names.length === 0) {
+                alert('请输入有效的学生名字！');
+                return;
+            }
+
+            if (names.length > 50) {
+                alert('学生数量不能超过50个！');
+                return;
+            }
+
+            // 去重
+            students = [...new Set(names)];
+            saveData();
+            renderBubbles();
+            closeImport();
+            alert(`成功导入 ${students.length} 个学生！`);
+        }
+
+        // 重置
+        function reset() {
+            if (confirm('确定要重置吗？所有泡泡将恢复显示，但历史记录会保留。')) {
+                renderBubbles();
+                if (fireworksInterval) {
+                    clearInterval(fireworksInterval);
+                    fireworksInterval = null;
+                }
+                celebration.style.display = 'none';
+                fireworks.innerHTML = '';
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            historyBtn.addEventListener('click', showHistory);
+            importBtn.addEventListener('click', showImport);
+            resetBtn.addEventListener('click', reset);
+            closeHistoryBtn.addEventListener('click', closeHistory);
+            closeImportBtn.addEventListener('click', closeImport);
+            confirmImportBtn.addEventListener('click', confirmImport);
+
+            // 点击模态框外部关闭
+            historyModal.addEventListener('click', (e) => {
+                if (e.target === historyModal) {
+                    closeHistory();
+                }
+            });
+
+            importModal.addEventListener('click', (e) => {
+                if (e.target === importModal) {
+                    closeImport();
+                }
+            });
+
+            // ESC键关闭模态框
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeHistory();
+                    closeImport();
+                }
+            });
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+
