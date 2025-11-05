@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>早读神器 - 课堂音量监测工具</title>
+    <!-- SheetJS库用于生成Excel文件 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 早读模式颜色 */
+            --morning-bg: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            --morning-card: rgba(255, 255, 255, 0.4);
+            --morning-accent: #ff6b9d;
+            
+            /* 自习模式颜色 */
+            --selfstudy-bg: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --selfstudy-card: rgba(255, 255, 255, 0.4);
+            --selfstudy-accent: #4facfe;
+            
+            /* 通用颜色 */
+            --text-dark: #2d3436;
+            --text-light: #636e72;
+            --success: #00b894;
+            --warning: #fdcb6e;
+            --danger: #e84393;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', 'PingFang SC', Arial, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background 0.5s ease;
+            overflow-x: hidden;
+        }
+
+        /* 早读模式背景 */
+        body.mode-morning {
+            background: var(--morning-bg);
+        }
+
+        /* 自习模式背景 */
+        body.mode-selfstudy {
+            background: var(--selfstudy-bg);
+        }
+
+        /* 装饰星星 */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+            animation: twinkle 3s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--shadow);
+            color: white;
+        }
+
+        .mode-btn.morning {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+        }
+
+        .mode-btn.selfstudy {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+        }
+
+        .mode-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .toolbar-right {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e84393, #fd79a8);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-dark);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 玻璃态卡片 */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 8px 32px var(--shadow);
+        }
+
+        /* 音量可视化圆形 */
+        .volume-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .volume-circle-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto 20px;
+        }
+
+        .volume-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .volume-circle::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.3;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.5; }
+        }
+
+        /* 音量等级样式 */
+        .volume-circle.level-seed {
+            background: linear-gradient(135deg, #a8e6cf, #dcedc1);
+            width: 150px;
+            height: 150px;
+        }
+
+        .volume-circle.level-sprout {
+            background: linear-gradient(135deg, #84fab0, #8fd3f4);
+            width: 200px;
+            height: 200px;
+        }
+
+        .volume-circle.level-tree {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            width: 250px;
+            height: 250px;
+        }
+
+        .volume-circle.level-star {
+            background: linear-gradient(135deg, #fdcb6e, #e17055);
+            width: 300px;
+            height: 300px;
+            animation: starGlow 1s ease-in-out infinite;
+        }
+
+        @keyframes starGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(253, 203, 110, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(253, 203, 110, 0.8); }
+        }
+
+        .volume-circle.level-champion {
+            background: linear-gradient(135deg, #ff6b9d, #c44569, #f8b500, #00b894);
+            width: 350px;
+            height: 350px;
+            animation: championRotate 3s linear infinite;
+            background-size: 400% 400%;
+        }
+
+        @keyframes championRotate {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .volume-circle-content {
+            position: relative;
+            z-index: 2;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .volume-level-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+
+        .volume-level-name {
+            font-size: 24px;
+        }
+
+        .volume-db {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: var(--text-dark);
+        }
+
+        /* 状态提示 */
+        .status-message {
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-message.success {
+            background: rgba(0, 184, 148, 0.2);
+            color: #00b894;
+        }
+
+        .status-message.warning {
+            background: rgba(253, 203, 110, 0.2);
+            color: #e17055;
+        }
+
+        .status-message.danger {
+            background: rgba(232, 67, 147, 0.2);
+            color: #e84393;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+
+        /* 阈值设置 */
+        .threshold-section {
+            margin-top: 30px;
+        }
+
+        .threshold-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .threshold-value {
+            font-size: 24px;
+            color: var(--danger);
+        }
+
+        .threshold-slider {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .threshold-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .threshold-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 波形图 */
+        .wave-container {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        #waveCanvas {
+            width: 100%;
+            height: 150px;
+            border-radius: 10px;
+        }
+
+        /* 会话记录 */
+        .logs-section {
+            margin-top: 30px;
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .logs-table th {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+
+        .logs-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-dark);
+        }
+
+        .logs-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 隐藏麦克风选择（简化操作） */
+        .mic-selector {
+            display: none;
+        }
+
+        /* 提示信息 */
+        .hint {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* 快捷键提示 */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            color: var(--text-dark);
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+
+        .shortcuts-hint h4 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .shortcuts-hint ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .shortcuts-hint li {
+            margin: 5px 0;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .volume-circle-container {
+                width: 250px;
+                height: 250px;
+            }
+
+            .volume-circle.level-champion {
+                width: 250px;
+                height: 250px;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="mode-morning">
+    <!-- 装饰星星 -->
+    <div class="stars" id="stars"></div>
+
+    <div class="container">
+        <!-- 顶部工具栏 -->
+        <div class="toolbar">
+            <div class="mode-selector">
+                <button class="mode-btn morning active" id="morningBtn">📚 早读模式</button>
+                <button class="mode-btn selfstudy" id="selfstudyBtn">🤫 自习模式</button>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn btn-primary" id="startBtn">▶️ 开始监测</button>
+                <button class="btn btn-danger" id="stopBtn" disabled>⏹️ 停止</button>
+                <button class="btn btn-secondary" id="fullscreenBtn">🔲 全屏</button>
+                <button class="btn btn-secondary" id="exportBtn">📊 导出Excel</button>
+            </div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 左侧：音量可视化 -->
+            <div class="glass-card">
+                <div class="volume-display">
+                    <div class="volume-circle-container">
+                        <div class="volume-circle level-seed" id="volumeCircle">
+                            <div class="volume-circle-content">
+                                <div class="volume-level-icon" id="levelIcon">🌱</div>
+                                <div class="volume-level-name" id="levelName">种子</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="volume-db" id="dbDisplay">0 dB</div>
+                    <div class="status-message success" id="statusMessage" style="display: none;">
+                        👍 声音很棒！
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">累计用时</div>
+                        <div class="stat-value" id="elapsedTime">0:00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">朗读状态</div>
+                        <div class="stat-value" id="readingStatus">未开始</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">朗读占比</div>
+                        <div class="stat-value" id="readingRatio">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均分贝</div>
+                        <div class="stat-value" id="avgDb">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：设置和数据 -->
+            <div class="glass-card">
+                <h2 style="margin-bottom: 20px; color: var(--text-dark);">设置</h2>
+                
+                <div class="threshold-section">
+                    <div class="threshold-label">
+                        <span>音量阈值</span>
+                        <span class="threshold-value" id="thresholdValue">60 dB</span>
+                    </div>
+                    <input type="range" id="thresholdSlider" class="threshold-slider" 
+                           min="30" max="100" value="60" step="1">
+                    <div class="hint" id="thresholdHint">早读模式：要求音量高于此值</div>
+                </div>
+
+                <div class="wave-container">
+                    <canvas id="waveCanvas"></canvas>
+                </div>
+
+                <div class="hint">
+                    提示：保持浏览器前台运行；移动端浏览器锁屏会暂停音频处理。
+                </div>
+            </div>
+        </div>
+
+        <!-- 会话记录 -->
+        <div class="glass-card logs-section">
+            <h2 style="margin-bottom: 20px; color: var(--text-dark);">会话记录</h2>
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th>开始时间</th>
+                        <th>模式</th>
+                        <th>时长</th>
+                        <th>朗读占比</th>
+                        <th>平均分贝</th>
+                        <th>最高分贝</th>
+                        <th>最低分贝</th>
+                    </tr>
+                </thead>
+                <tbody id="logsBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-light);">
+                            暂无记录
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 快捷键提示 -->
+    <div class="shortcuts-hint">
+        <h4>⌨️ 快捷键</h4>
+        <ul>
+            <li>空格键：开始/停止</li>
+            <li>F键：全屏</li>
+            <li>M键：切换模式</li>
+        </ul>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentMode = 'morning'; // 'morning' 或 'selfstudy'
+        let audioCtx, analyser, mediaStream, sourceNode, rafId;
+        let startedAt = 0;
+        let timerId = null;
+        let frames = 0;
+        let rmsSum = 0;
+        let readingFrames = 0;
+        let maxDb = 0;
+        let minDb = 100;
+        let currentDb = 0;
+        let thresholdDb = 60; // 默认阈值（分贝）
+        let sessionLogs = [];
+        let isRunning = false;
+
+        // DOM元素
+        const morningBtn = document.getElementById('morningBtn');
+        const selfstudyBtn = document.getElementById('selfstudyBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const volumeCircle = document.getElementById('volumeCircle');
+        const levelIcon = document.getElementById('levelIcon');
+        const levelName = document.getElementById('levelName');
+        const dbDisplay = document.getElementById('dbDisplay');
+        const statusMessage = document.getElementById('statusMessage');
+        const elapsedTime = document.getElementById('elapsedTime');
+        const readingStatus = document.getElementById('readingStatus');
+        const readingRatio = document.getElementById('readingRatio');
+        const avgDb = document.getElementById('avgDb');
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const thresholdValue = document.getElementById('thresholdValue');
+        const thresholdHint = document.getElementById('thresholdHint');
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+        const logsBody = document.getElementById('logsBody');
+
+        // 音量等级配置
+        const volumeLevels = [
+            { name: '种子', icon: '🌱', min: 0, max: 40, class: 'level-seed' },
+            { name: '小苗', icon: '🌿', min: 40, max: 60, class: 'level-sprout' },
+            { name: '大树', icon: '🌳', min: 60, max: 80, class: 'level-tree' },
+            { name: '星星', icon: '⭐', min: 80, max: 100, class: 'level-star' },
+            { name: '冠军', icon: '🏆', min: 100, max: 200, class: 'level-champion' }
+        ];
+
+        // 初始化
+        function init() {
+            // 加载保存的设置
+            loadSettings();
+            
+            // 创建装饰星星
+            createStars();
+            
+            // 初始化画布
+            resizeCanvas();
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 更新界面
+            updateModeUI();
+        }
+
+        // 创建装饰星星
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const starCount = 30;
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.textContent = '✨';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                star.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // 调整画布大小
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            waveCanvas.width = waveCanvas.clientWidth * dpr;
+            waveCanvas.height = waveCanvas.clientHeight * dpr;
+            waveCtx.scale(dpr, dpr);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // 加载设置
+        function loadSettings() {
+            const savedMode = localStorage.getItem('readingMode');
+            const savedThreshold = localStorage.getItem('readingThreshold');
+            
+            if (savedMode) {
+                currentMode = savedMode;
+            }
+            
+            if (savedThreshold) {
+                thresholdDb = parseInt(savedThreshold);
+                thresholdSlider.value = thresholdDb;
+            } else {
+                // 根据模式设置默认阈值
+                thresholdDb = currentMode === 'morning' ? 60 : 40;
+                thresholdSlider.value = thresholdDb;
+            }
+        }
+
+        // 保存设置
+        function saveSettings() {
+            localStorage.setItem('readingMode', currentMode);
+            localStorage.setItem('readingThreshold', thresholdDb.toString());
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 模式切换
+            morningBtn.addEventListener('click', () => switchMode('morning'));
+            selfstudyBtn.addEventListener('click', () => switchMode('selfstudy'));
+
+            // 开始/停止
+            startBtn.addEventListener('click', startMonitoring);
+            stopBtn.addEventListener('click', stopMonitoring);
+
+            // 全屏
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+            // 导出
+            exportBtn.addEventListener('click', exportData);
+
+            // 阈值滑块
+            thresholdSlider.addEventListener('input', (e) => {
+                thresholdDb = parseInt(e.target.value);
+                thresholdValue.textContent = thresholdDb + ' dB';
+                saveSettings();
+            });
+
+            // 快捷键
+            document.addEventListener('keydown', handleKeyboard);
+        }
+
+        // 切换模式
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // 更新按钮状态
+            morningBtn.classList.toggle('active', mode === 'morning');
+            selfstudyBtn.classList.toggle('active', mode === 'selfstudy');
+            
+            // 更新背景
+            document.body.className = `mode-${mode}`;
+            
+            // 更新默认阈值
+            if (mode === 'morning') {
+                thresholdDb = 60;
+            } else {
+                thresholdDb = 40;
+            }
+            thresholdSlider.value = thresholdDb;
+            thresholdValue.textContent = thresholdDb + ' dB';
+            
+            // 更新提示
+            updateModeUI();
+            
+            // 保存设置
+            saveSettings();
+        }
+
+        // 更新模式UI
+        function updateModeUI() {
+            if (currentMode === 'morning') {
+                thresholdHint.textContent = '早读模式：要求音量高于此值';
+            } else {
+                thresholdHint.textContent = '自习模式：要求音量低于此值';
+            }
+        }
+
+        // 开始监测
+        async function startMonitoring() {
+            try {
+                // 请求麦克风权限
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1,
+                        sampleRate: 48000
+                    }
+                });
+
+                // 创建音频上下文
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                sourceNode.connect(analyser);
+
+                // 重置统计数据
+                startedAt = Date.now();
+                frames = 0;
+                rmsSum = 0;
+                readingFrames = 0;
+                maxDb = 0;
+                minDb = 100;
+
+                // 更新按钮状态
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                isRunning = true;
+
+                // 开始分析循环
+                analyseLoop();
+
+                // 开始计时器
+                timerId = setInterval(() => {
+                    updateElapsedTime();
+                }, 1000);
+
+            } catch (err) {
+                alert('无法访问麦克风：' + err.message);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // 停止监测
+        function stopMonitoring() {
+            isRunning = false;
+            
+            // 停止动画循环
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+            }
+            
+            // 停止计时器
+            if (timerId) {
+                clearInterval(timerId);
+            }
+            
+            // 关闭音频上下文
+            if (audioCtx) {
+                audioCtx.close();
+            }
+            
+            // 停止媒体流
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // 更新按钮状态
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            // 保存会话记录
+            saveSessionLog();
+            
+            // 重置显示
+            resetDisplay();
+        }
+
+        // 分析循环
+        function analyseLoop() {
+            if (!isRunning) return;
+
+            const buf = new Uint8Array(analyser.fftSize);
+            analyser.getByteTimeDomainData(buf);
+            
+            // 绘制波形
+            drawWave(buf);
+            
+            // 计算RMS
+            let sum = 0;
+            for (let i = 0; i < buf.length; i++) {
+                const v = (buf[i] - 128) / 128;
+                sum += v * v;
+            }
+            const rms = Math.sqrt(sum / buf.length) || 1e-8;
+            
+            // 转换为分贝值
+            const db = Math.max(0, Math.min(120, 20 * Math.log10(rms) + 100));
+            currentDb = db;
+            
+            // 更新统计
+            frames++;
+            rmsSum += db;
+            maxDb = Math.max(maxDb, db);
+            minDb = Math.min(minDb, db);
+            
+            // 判断是否在读
+            const isReading = currentMode === 'morning' 
+                ? db >= thresholdDb 
+                : db <= thresholdDb;
+            
+            if (isReading) {
+                readingFrames++;
+            }
+            
+            // 更新界面
+            updateVolumeDisplay(db);
+            updateVolumeLevel(db);
+            updateStatusMessage(db, isReading);
+            updateStats();
+            
+            // 继续循环
+            rafId = requestAnimationFrame(analyseLoop);
+        }
+
+        // 绘制波形
+        function drawWave(buf) {
+            const w = waveCanvas.clientWidth;
+            const h = waveCanvas.clientHeight;
+            
+            waveCtx.clearRect(0, 0, w, h);
+            
+            // 绘制背景
+            waveCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            waveCtx.fillRect(0, 0, w, h);
+            
+            // 绘制波形
+            waveCtx.strokeStyle = currentMode === 'morning' ? '#ff6b9d' : '#4facfe';
+            waveCtx.lineWidth = 2;
+            waveCtx.beginPath();
+            
+            const step = Math.ceil(buf.length / w);
+            for (let x = 0, i = 0; x < w; x++, i += step) {
+                const v = (buf[i] - 128) / 128;
+                const y = h / 2 + v * (h * 0.4);
+                if (x === 0) {
+                    waveCtx.moveTo(x, y);
+                } else {
+                    waveCtx.lineTo(x, y);
+                }
+            }
+            
+            waveCtx.stroke();
+        }
+
+        // 更新音量显示
+        function updateVolumeDisplay(db) {
+            dbDisplay.textContent = db.toFixed(1) + ' dB';
+        }
+
+        // 更新音量等级
+        function updateVolumeLevel(db) {
+            let level = volumeLevels[0];
+            for (let i = volumeLevels.length - 1; i >= 0; i--) {
+                if (db >= volumeLevels[i].min) {
+                    level = volumeLevels[i];
+                    break;
+                }
+            }
+            
+            // 更新图标和名称
+            levelIcon.textContent = level.icon;
+            levelName.textContent = level.name;
+            
+            // 更新圆形样式
+            volumeCircle.className = 'volume-circle ' + level.class;
+            
+            // 根据音量调整大小
+            const scale = Math.min(1, (db - level.min) / (level.max - level.min) + 0.5);
+            const size = level === volumeLevels[0] ? 150 : 
+                         level === volumeLevels[1] ? 200 : 
+                         level === volumeLevels[2] ? 250 : 
+                         level === volumeLevels[3] ? 300 : 350;
+            volumeCircle.style.width = size + 'px';
+            volumeCircle.style.height = size + 'px';
+        }
+
+        // 更新状态消息
+        function updateStatusMessage(db, isReading) {
+            if (!isRunning) {
+                statusMessage.style.display = 'none';
+                return;
+            }
+            
+            statusMessage.style.display = 'block';
+            
+            if (currentMode === 'morning') {
+                if (isReading) {
+                    statusMessage.className = 'status-message success';
+                    statusMessage.textContent = '👍 声音很棒！';
+                } else {
+                    statusMessage.className = 'status-message warning';
+                    statusMessage.textContent = '🔊 声音再大一点哦！';
+                }
+            } else {
+                if (isReading) {
+                    statusMessage.className = 'status-message success';
+                    statusMessage.textContent = '✅ 保持安静';
+                } else {
+                    statusMessage.className = 'status-message danger';
+                    statusMessage.textContent = '⚠️ 音量过大，请保持安静！';
+                }
+            }
+        }
+
+        // 更新统计
+        function updateStats() {
+            // 朗读占比
+            const ratio = frames > 0 ? (readingFrames / frames * 100).toFixed(1) : 0;
+            readingRatio.textContent = ratio + '%';
+            
+            // 平均分贝
+            const avg = frames > 0 ? (rmsSum / frames).toFixed(1) : 0;
+            avgDb.textContent = avg;
+            
+            // 朗读状态
+            const isReading = currentMode === 'morning' 
+                ? currentDb >= thresholdDb 
+                : currentDb <= thresholdDb;
+            readingStatus.textContent = isReading ? '在读' : '未读';
+            readingStatus.style.color = isReading ? '#00b894' : '#e17055';
+        }
+
+        // 更新用时
+        function updateElapsedTime() {
+            if (!isRunning) return;
+            const elapsed = Date.now() - startedAt;
+            const seconds = Math.floor(elapsed / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            elapsedTime.textContent = `${minutes}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // 重置显示
+        function resetDisplay() {
+            volumeCircle.className = 'volume-circle level-seed';
+            volumeCircle.style.width = '150px';
+            volumeCircle.style.height = '150px';
+            levelIcon.textContent = '🌱';
+            levelName.textContent = '种子';
+            dbDisplay.textContent = '0 dB';
+            statusMessage.style.display = 'none';
+            elapsedTime.textContent = '0:00';
+            readingStatus.textContent = '未开始';
+            readingRatio.textContent = '0%';
+            avgDb.textContent = '0';
+            
+            // 清空画布
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+        }
+
+        // 保存会话记录
+        function saveSessionLog() {
+            if (frames === 0) return;
+            
+            const duration = Math.floor((Date.now() - startedAt) / 1000);
+            const ratio = (readingFrames / frames * 100).toFixed(1);
+            const avg = (rmsSum / frames).toFixed(1);
+            
+            const log = {
+                time: new Date().toLocaleString('zh-CN'),
+                mode: currentMode === 'morning' ? '早读' : '自习',
+                duration: duration,
+                ratio: ratio,
+                avgDb: avg,
+                maxDb: maxDb.toFixed(1),
+                minDb: minDb.toFixed(1)
+            };
+            
+            sessionLogs.push(log);
+            renderLogs();
+            
+            // 保存到本地存储
+            localStorage.setItem('readingLogs', JSON.stringify(sessionLogs));
+        }
+
+        // 渲染日志
+        function renderLogs() {
+            if (sessionLogs.length === 0) {
+                logsBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-light);">
+                            暂无记录
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            logsBody.innerHTML = sessionLogs.map(log => `
+                <tr>
+                    <td>${log.time}</td>
+                    <td>${log.mode}</td>
+                    <td>${log.duration}秒</td>
+                    <td>${log.ratio}%</td>
+                    <td>${log.avgDb} dB</td>
+                    <td>${log.maxDb} dB</td>
+                    <td>${log.minDb} dB</td>
+                </tr>
+            `).join('');
+        }
+
+        // 导出数据（Excel格式）
+        function exportData() {
+            if (sessionLogs.length === 0) {
+                alert('暂无数据可导出');
+                return;
+            }
+            
+            // 检查SheetJS库是否加载
+            if (typeof XLSX === 'undefined') {
+                alert('Excel导出功能加载失败，请刷新页面重试');
+                return;
+            }
+            
+            // 准备数据
+            const header = ['时间', '模式', '时长(秒)', '朗读占比(%)', '平均分贝', '最高分贝', '最低分贝'];
+            const rows = sessionLogs.map(log => [
+                log.time,
+                log.mode,
+                log.duration,
+                parseFloat(log.ratio), // 转换为数字
+                parseFloat(log.avgDb), // 转换为数字
+                parseFloat(log.maxDb), // 转换为数字
+                parseFloat(log.minDb)  // 转换为数字
+            ]);
+            
+            // 创建工作簿
+            const wb = XLSX.utils.book_new();
+            
+            // 创建工作表数据
+            const wsData = [header, ...rows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // 设置列宽
+            ws['!cols'] = [
+                { wch: 20 }, // 时间列
+                { wch: 8 },  // 模式列
+                { wch: 10 }, // 时长列
+                { wch: 12 }, // 朗读占比列
+                { wch: 10 }, // 平均分贝列
+                { wch: 10 }, // 最高分贝列
+                { wch: 10 }  // 最低分贝列
+            ];
+            
+            // 添加工作表到工作簿
+            XLSX.utils.book_append_sheet(wb, ws, '早读记录');
+            
+            // 生成文件名
+            const fileName = `早读记录_${new Date().toISOString().split('T')[0]}.xlsx`;
+            
+            // 导出Excel文件
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // 全屏切换
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('无法进入全屏模式', err);
+                });
+                fullscreenBtn.textContent = '🔳 退出全屏';
+            } else {
+                document.exitFullscreen();
+                fullscreenBtn.textContent = '🔲 全屏';
+            }
+        }
+
+        // 处理键盘事件
+        function handleKeyboard(e) {
+            // 空格键：开始/停止
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (isRunning) {
+                    stopMonitoring();
+                } else {
+                    startMonitoring();
+                }
+            }
+            
+            // F键：全屏
+            if (e.code === 'KeyF' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+            
+            // M键：切换模式
+            if (e.code === 'KeyM' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                switchMode(currentMode === 'morning' ? 'selfstudy' : 'morning');
+            }
+        }
+
+        // 加载历史记录
+        function loadLogs() {
+            const saved = localStorage.getItem('readingLogs');
+            if (saved) {
+                try {
+                    sessionLogs = JSON.parse(saved);
+                    renderLogs();
+                } catch (e) {
+                    console.error('加载记录失败', e);
+                }
+            }
+        }
+
+        // 监听全屏变化
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenBtn.textContent = '🔳 退出全屏';
+            } else {
+                fullscreenBtn.textContent = '🔲 全屏';
+            }
+        });
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            init();
+            loadLogs();
+        });
+    </script>
+</body>
+</html>
+
